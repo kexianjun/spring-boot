@@ -97,11 +97,13 @@ public final class WebFluxTags {
 			return Tag.of("uri", pathPattern.getPatternString());
 		}
 		HttpStatus status = exchange.getResponse().getStatusCode();
-		if (status != null && status.is3xxRedirection()) {
-			return URI_REDIRECTION;
-		}
-		if (status != null && status.equals(HttpStatus.NOT_FOUND)) {
-			return URI_NOT_FOUND;
+		if (status != null) {
+			if (status.is3xxRedirection()) {
+				return URI_REDIRECTION;
+			}
+			if (status == HttpStatus.NOT_FOUND) {
+				return URI_NOT_FOUND;
+			}
 		}
 		String path = exchange.getRequest().getPath().value();
 		if (path.isEmpty()) {
@@ -126,10 +128,11 @@ public final class WebFluxTags {
 	}
 
 	/**
-	 * Creates a {@code outcome} tag based on the response status of the given
+	 * Creates an {@code outcome} tag based on the response status of the given
 	 * {@code exchange}.
 	 * @param exchange the exchange
 	 * @return the outcome tag derived from the response status
+	 * @since 2.1.0
 	 */
 	public static Tag outcome(ServerWebExchange exchange) {
 		HttpStatus status = exchange.getResponse().getStatusCode();

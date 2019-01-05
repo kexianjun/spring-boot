@@ -15,6 +15,7 @@
  */
 package org.springframework.boot.autoconfigure.security.oauth2.client.reactive;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,15 +53,15 @@ public class ReactiveOAuth2ClientAutoConfigurationTests {
 			.withConfiguration(
 					AutoConfigurations.of(ReactiveOAuth2ClientAutoConfiguration.class));
 
-	private static final String REGISTRATION_PREFIX = "spring.security.oauth2.client.registration.login";
+	private static final String REGISTRATION_PREFIX = "spring.security.oauth2.client.registration";
 
 	@Test
 	public void autoConfigurationShouldBackOffForServletEnvironments() {
-		WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()
+		new WebApplicationContextRunner()
 				.withConfiguration(AutoConfigurations
-						.of(ReactiveOAuth2ClientAutoConfiguration.class));
-		contextRunner.run((context) -> assertThat(context)
-				.doesNotHaveBean(ReactiveOAuth2ClientAutoConfiguration.class));
+						.of(ReactiveOAuth2ClientAutoConfiguration.class))
+				.run((context) -> assertThat(context)
+						.doesNotHaveBean(ReactiveOAuth2ClientAutoConfiguration.class));
 	}
 
 	@Test
@@ -77,7 +78,7 @@ public class ReactiveOAuth2ClientAutoConfigurationTests {
 					ReactiveClientRegistrationRepository repository = context
 							.getBean(ReactiveClientRegistrationRepository.class);
 					ClientRegistration registration = repository
-							.findByRegistrationId("foo").block();
+							.findByRegistrationId("foo").block(Duration.ofSeconds(30));
 					assertThat(registration).isNotNull();
 					assertThat(registration.getClientSecret()).isEqualTo("secret");
 				});

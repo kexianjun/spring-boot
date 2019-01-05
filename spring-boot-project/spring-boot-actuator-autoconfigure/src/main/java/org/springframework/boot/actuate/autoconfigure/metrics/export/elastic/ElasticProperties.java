@@ -29,9 +29,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ElasticProperties extends StepRegistryProperties {
 
 	/**
-	 * Hosts to export metrics to.
+	 * Host to export metrics to.
 	 */
-	private String[] hosts = new String[] { "http://localhost:9200" };
+	private String host = "http://localhost:9200";
 
 	/**
 	 * Index to export metrics to.
@@ -55,21 +55,21 @@ public class ElasticProperties extends StepRegistryProperties {
 	private boolean autoCreateIndex = true;
 
 	/**
-	 * Username for basic authentication.
+	 * Login user of the Elastic server.
 	 */
 	private String userName = "";
 
 	/**
-	 * Password for basic authentication.
+	 * Login password of the Elastic server.
 	 */
 	private String password = "";
 
-	public String[] getHosts() {
-		return this.hosts;
+	public String getHost() {
+		return this.host;
 	}
 
-	public void setHosts(String[] hosts) {
-		this.hosts = hosts;
+	public void setHost(String host) {
+		this.host = host;
 	}
 
 	public String getIndex() {
