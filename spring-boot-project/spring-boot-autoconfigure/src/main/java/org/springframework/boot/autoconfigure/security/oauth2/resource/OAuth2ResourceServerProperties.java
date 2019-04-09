@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -50,6 +50,11 @@ public class OAuth2ResourceServerProperties {
 		 */
 		private String issuerUri;
 
+		/**
+		 * Location of the file containing the public key used to verify a JWT.
+		 */
+		private String publicKeyLocation;
+
 		public String getJwkSetUri() {
 			return this.jwkSetUri;
 		}
@@ -72,6 +77,14 @@ public class OAuth2ResourceServerProperties {
 
 		public void setIssuerUri(String issuerUri) {
 			this.issuerUri = issuerUri;
+		}
+
+		public String getPublicKeyLocation() {
+			return this.publicKeyLocation;
+		}
+
+		public void setPublicKeyLocation(String publicKeyLocation) {
+			this.publicKeyLocation = publicKeyLocation;
 		}
 
 	}

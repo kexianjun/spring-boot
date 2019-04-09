@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,6 +32,7 @@ import org.springframework.boot.test.context.runner.ContextConsumer;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.embedded.tomcat.TomcatConnectorCustomizer;
 import org.springframework.boot.web.embedded.tomcat.TomcatContextCustomizer;
+import org.springframework.boot.web.embedded.tomcat.TomcatProtocolHandlerCustomizer;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
@@ -170,6 +171,21 @@ public class ServletWebServerFactoryAutoConfigurationTests {
 		});
 	}
 
+	@Test
+	public void tomcatProtocolHandlerCustomizerBeanIsAddedToFactory() {
+		WebApplicationContextRunner runner = new WebApplicationContextRunner(
+				AnnotationConfigServletWebServerApplicationContext::new)
+						.withConfiguration(AutoConfigurations
+								.of(ServletWebServerFactoryAutoConfiguration.class))
+						.withUserConfiguration(
+								TomcatProtocolHandlerCustomizerConfiguration.class);
+		runner.run((context) -> {
+			TomcatServletWebServerFactory factory = context
+					.getBean(TomcatServletWebServerFactory.class);
+			assertThat(factory.getTomcatProtocolHandlerCustomizers()).hasSize(1);
+		});
+	}
+
 	private ContextConsumer<AssertableWebApplicationContext> verifyContext() {
 		return this::verifyContext;
 	}
@@ -183,7 +199,7 @@ public class ServletWebServerFactoryAutoConfigurationTests {
 		verify(factory.getServletContext()).addServlet("dispatcherServlet", servlet);
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	@ConditionalOnExpression("true")
 	public static class WebServerConfiguration {
 
@@ -194,7 +210,7 @@ public class ServletWebServerFactoryAutoConfigurationTests {
 
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	public static class DispatcherServletConfiguration {
 
 		@Bean
@@ -204,7 +220,7 @@ public class ServletWebServerFactoryAutoConfigurationTests {
 
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	public static class SpringServletConfiguration {
 
 		@Bean
@@ -214,7 +230,7 @@ public class ServletWebServerFactoryAutoConfigurationTests {
 
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	public static class NonSpringServletConfiguration {
 
 		@Bean
@@ -229,7 +245,7 @@ public class ServletWebServerFactoryAutoConfigurationTests {
 
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	public static class NonServletConfiguration {
 
 		@Bean
@@ -239,7 +255,7 @@ public class ServletWebServerFactoryAutoConfigurationTests {
 
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	public static class DispatcherServletWithRegistrationConfiguration {
 
 		@Bean(name = DispatcherServletAutoConfiguration.DEFAULT_DISPATCHER_SERVLET_BEAN_NAME)
@@ -248,8 +264,9 @@ public class ServletWebServerFactoryAutoConfigurationTests {
 		}
 
 		@Bean(name = DispatcherServletAutoConfiguration.DEFAULT_DISPATCHER_SERVLET_REGISTRATION_BEAN_NAME)
-		public ServletRegistrationBean<DispatcherServlet> dispatcherRegistration() {
-			return new ServletRegistrationBean<>(dispatcherServlet(), "/app/*");
+		public ServletRegistrationBean<DispatcherServlet> dispatcherRegistration(
+				DispatcherServlet dispatcherServlet) {
+			return new ServletRegistrationBean<>(dispatcherServlet, "/app/*");
 		}
 
 	}
@@ -285,7 +302,7 @@ public class ServletWebServerFactoryAutoConfigurationTests {
 
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	static class TomcatConnectorCustomizerConfiguration {
 
 		@Bean
@@ -296,12 +313,23 @@ public class ServletWebServerFactoryAutoConfigurationTests {
 
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	static class TomcatContextCustomizerConfiguration {
 
 		@Bean
 		public TomcatContextCustomizer contextCustomizer() {
 			return (context) -> {
+			};
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class TomcatProtocolHandlerCustomizerConfiguration {
+
+		@Bean
+		public TomcatProtocolHandlerCustomizer protocolHandlerCustomizer() {
+			return (protocolHandler) -> {
 			};
 		}
 

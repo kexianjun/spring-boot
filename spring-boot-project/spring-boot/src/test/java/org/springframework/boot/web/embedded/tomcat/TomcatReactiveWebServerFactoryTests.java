@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,7 +23,11 @@ import org.apache.catalina.LifecycleEvent;
 import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.core.AprLifecycleListener;
+import org.apache.catalina.core.StandardContext;
+import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.valves.RemoteIpValve;
+import org.apache.coyote.ProtocolHandler;
+import org.apache.coyote.http11.AbstractHttp11Protocol;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
@@ -80,8 +84,13 @@ public class TomcatReactiveWebServerFactoryTests
 	@Test
 	public void defaultTomcatListeners() {
 		TomcatReactiveWebServerFactory factory = getFactory();
-		assertThat(factory.getContextLifecycleListeners()).hasSize(1).first()
-				.isInstanceOf(AprLifecycleListener.class);
+		if (AprLifecycleListener.isAprAvailable()) {
+			assertThat(factory.getContextLifecycleListeners()).hasSize(1).first()
+					.isInstanceOf(AprLifecycleListener.class);
+		}
+		else {
+			assertThat(factory.getContextLifecycleListeners()).isEmpty();
+		}
 	}
 
 	@Test
@@ -115,6 +124,24 @@ public class TomcatReactiveWebServerFactoryTests
 	}
 
 	@Test
+	public void setNullProtocolHandlerCustomizersShouldThrowException() {
+		TomcatReactiveWebServerFactory factory = getFactory();
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> factory.setTomcatProtocolHandlerCustomizers(null))
+				.withMessageContaining(
+						"TomcatProtocolHandlerCustomizers must not be null");
+	}
+
+	@Test
+	public void addNullProtocolHandlerCustomizersShouldThrowException() {
+		TomcatReactiveWebServerFactory factory = getFactory();
+		assertThatIllegalArgumentException().isThrownBy(() -> factory
+				.addProtocolHandlerCustomizers((TomcatProtocolHandlerCustomizer[]) null))
+				.withMessageContaining(
+						"TomcatProtocolHandlerCustomizers must not be null");
+	}
+
+	@Test
 	public void tomcatConnectorCustomizersShouldBeInvoked() {
 		TomcatReactiveWebServerFactory factory = getFactory();
 		HttpHandler handler = mock(HttpHandler.class);
@@ -130,12 +157,40 @@ public class TomcatReactiveWebServerFactoryTests
 	}
 
 	@Test
+	public void tomcatProtocolHandlerCustomizersShouldBeInvoked() {
+		TomcatReactiveWebServerFactory factory = getFactory();
+		HttpHandler handler = mock(HttpHandler.class);
+		TomcatProtocolHandlerCustomizer<AbstractHttp11Protocol>[] listeners = new TomcatProtocolHandlerCustomizer[4];
+		Arrays.setAll(listeners, (i) -> mock(TomcatProtocolHandlerCustomizer.class));
+		factory.setTomcatProtocolHandlerCustomizers(
+				Arrays.asList(listeners[0], listeners[1]));
+		factory.addProtocolHandlerCustomizers(listeners[2], listeners[3]);
+		this.webServer = factory.getWebServer(handler);
+		InOrder ordered = inOrder((Object[]) listeners);
+		for (TomcatProtocolHandlerCustomizer listener : listeners) {
+			ordered.verify(listener).customize(any(ProtocolHandler.class));
+		}
+	}
+
+	@Test
 	public void useForwardedHeaders() {
 		TomcatReactiveWebServerFactory factory = getFactory();
 		RemoteIpValve valve = new RemoteIpValve();
 		valve.setProtocolHeader("X-Forwarded-Proto");
 		factory.addEngineValves(valve);
 		assertForwardHeaderIsUsed(factory);
+	}
+
+	@Test
+	public void referenceClearingIsDisabled() {
+		TomcatReactiveWebServerFactory factory = getFactory();
+		this.webServer = factory.getWebServer(mock(HttpHandler.class));
+		this.webServer.start();
+		Tomcat tomcat = ((TomcatWebServer) this.webServer).getTomcat();
+		StandardContext context = (StandardContext) tomcat.getHost().findChildren()[0];
+		assertThat(context.getClearReferencesObjectStreamClassCaches()).isFalse();
+		assertThat(context.getClearReferencesRmiTargets()).isFalse();
+		assertThat(context.getClearReferencesThreadLocals()).isFalse();
 	}
 
 }
