@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,11 @@
 
 package org.springframework.boot.gradle.tasks.bundling;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -33,6 +38,7 @@ import org.gradle.api.java.archives.Attributes;
 import org.gradle.api.specs.Spec;
 import org.gradle.api.specs.Specs;
 import org.gradle.api.tasks.WorkResult;
+import org.gradle.api.tasks.bundling.AbstractArchiveTask;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.util.PatternSet;
 
@@ -42,6 +48,8 @@ import org.gradle.api.tasks.util.PatternSet;
  * @author Andy Wilkinson
  */
 class BootArchiveSupport {
+
+	private static final byte[] ZIP_FILE_HEADER = new byte[] { 'P', 'K', 3, 4 };
 
 	private static final Set<String> DEFAULT_LAUNCHER_CLASSES;
 
@@ -65,24 +73,30 @@ class BootArchiveSupport {
 
 	private boolean excludeDevtools = true;
 
-	BootArchiveSupport(String loaderMainClass,
-			Function<FileCopyDetails, ZipCompression> compressionResolver) {
+	BootArchiveSupport(String loaderMainClass, Function<FileCopyDetails, ZipCompression> compressionResolver) {
 		this.loaderMainClass = loaderMainClass;
 		this.compressionResolver = compressionResolver;
 		this.requiresUnpack.include(Specs.satisfyNone());
 		configureExclusions();
 	}
 
-	void configureManifest(Jar jar, String mainClassName) {
+	void configureManifest(Jar jar, String mainClassName, String springBootClasses, String springBootLib) {
 		Attributes attributes = jar.getManifest().getAttributes();
 		attributes.putIfAbsent("Main-Class", this.loaderMainClass);
 		attributes.putIfAbsent("Start-Class", mainClassName);
+		attributes.computeIfAbsent("Spring-Boot-Version", (key) -> determineSpringBootVersion());
+		attributes.putIfAbsent("Spring-Boot-Classes", springBootClasses);
+		attributes.putIfAbsent("Spring-Boot-Lib", springBootLib);
+	}
+
+	private String determineSpringBootVersion() {
+		String implementationVersion = getClass().getPackage().getImplementationVersion();
+		return (implementationVersion != null) ? implementationVersion : "unknown";
 	}
 
 	CopyAction createCopyAction(Jar jar) {
-		CopyAction copyAction = new BootZipCopyAction(jar.getArchivePath(),
-				jar.isPreserveFileTimestamps(), isUsingDefaultLoader(jar),
-				this.requiresUnpack.getAsSpec(), this.exclusions.getAsExcludeSpec(),
+		CopyAction copyAction = new BootZipCopyAction(getOutputLocation(jar), jar.isPreserveFileTimestamps(),
+				isUsingDefaultLoader(jar), this.requiresUnpack.getAsSpec(), this.exclusions.getAsExcludeSpec(),
 				this.launchScript, this.compressionResolver, jar.getMetadataCharset());
 		if (!jar.isReproducibleFileOrder()) {
 			return copyAction;
@@ -90,9 +104,30 @@ class BootArchiveSupport {
 		return new ReproducibleOrderingCopyAction(copyAction);
 	}
 
+	private static File getOutputLocation(AbstractArchiveTask task) {
+		try {
+			Method method = findMethod(task.getClass(), "getArchiveFile");
+			if (method != null) {
+				return (File) method.invoke(task);
+			}
+		}
+		catch (Exception ex) {
+			// Continue
+		}
+		return task.getArchivePath();
+	}
+
+	private static Method findMethod(Class<?> type, String name) {
+		for (Method candidate : type.getMethods()) {
+			if (candidate.getName().equals(name)) {
+				return candidate;
+			}
+		}
+		return null;
+	}
+
 	private boolean isUsingDefaultLoader(Jar jar) {
-		return DEFAULT_LAUNCHER_CLASSES
-				.contains(jar.getManifest().getAttributes().get("Main-Class"));
+		return DEFAULT_LAUNCHER_CLASSES.contains(jar.getManifest().getAttributes().get("Main-Class"));
 	}
 
 	LaunchScriptConfiguration getLaunchScript() {
@@ -120,6 +155,26 @@ class BootArchiveSupport {
 		configureExclusions();
 	}
 
+	boolean isZip(File file) {
+		try {
+			try (FileInputStream fileInputStream = new FileInputStream(file)) {
+				return isZip(fileInputStream);
+			}
+		}
+		catch (IOException ex) {
+			return false;
+		}
+	}
+
+	private boolean isZip(InputStream inputStream) throws IOException {
+		for (byte headerByte : ZIP_FILE_HEADER) {
+			if (inputStream.read() != headerByte) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	private void configureExclusions() {
 		Set<String> excludes = new HashSet<>();
 		if (this.excludeDevtools) {
@@ -140,8 +195,7 @@ class BootArchiveSupport {
 		public WorkResult execute(CopyActionProcessingStream stream) {
 			return this.delegate.execute((action) -> {
 				Map<RelativePath, FileCopyDetailsInternal> detailsByPath = new TreeMap<>();
-				stream.process((details) -> detailsByPath.put(details.getRelativePath(),
-						details));
+				stream.process((details) -> detailsByPath.put(details.getRelativePath(), details));
 				detailsByPath.values().forEach(action::processFile);
 			});
 		}

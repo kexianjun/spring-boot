@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,6 +29,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.cassandra.ReactiveSession;
 import org.springframework.data.cassandra.ReactiveSessionFactory;
+import org.springframework.data.cassandra.core.ReactiveCassandraOperations;
 import org.springframework.data.cassandra.core.ReactiveCassandraTemplate;
 import org.springframework.data.cassandra.core.convert.CassandraConverter;
 import org.springframework.data.cassandra.core.cql.session.DefaultBridgedReactiveSession;
@@ -42,7 +43,7 @@ import org.springframework.data.cassandra.core.cql.session.DefaultReactiveSessio
  * @author Mark Paluch
  * @since 2.0.0
  */
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @ConditionalOnClass({ Cluster.class, ReactiveCassandraTemplate.class, Flux.class })
 @ConditionalOnBean(Session.class)
 @AutoConfigureAfter(CassandraDataAutoConfiguration.class)
@@ -55,15 +56,14 @@ public class CassandraReactiveDataAutoConfiguration {
 	}
 
 	@Bean
-	public ReactiveSessionFactory reactiveCassandraSessionFactory(
-			ReactiveSession reactiveCassandraSession) {
+	public ReactiveSessionFactory reactiveCassandraSessionFactory(ReactiveSession reactiveCassandraSession) {
 		return new DefaultReactiveSessionFactory(reactiveCassandraSession);
 	}
 
 	@Bean
-	@ConditionalOnMissingBean
-	public ReactiveCassandraTemplate reactiveCassandraTemplate(
-			ReactiveSession reactiveCassandraSession, CassandraConverter converter) {
+	@ConditionalOnMissingBean(ReactiveCassandraOperations.class)
+	public ReactiveCassandraTemplate reactiveCassandraTemplate(ReactiveSession reactiveCassandraSession,
+			CassandraConverter converter) {
 		return new ReactiveCassandraTemplate(reactiveCassandraSession, converter);
 	}
 
