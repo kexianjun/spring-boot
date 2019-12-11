@@ -86,7 +86,7 @@
 							</execution>
 						</executions>
 					</plugin>-->
-					<plugin>
+					<!--<plugin>
 						<groupId>io.spring.javaformat</groupId>
 						<artifactId>spring-javaformat-maven-plugin</artifactId>
 						<version>${spring-javaformat.version}</version>
@@ -101,13 +101,14 @@
 								</goals>
 							</execution>
 						</executions>
-					</plugin>
+					</plugin>-->
 				</plugins>
 			</build>
 			<modules>
 				<module>spring-boot-project</module>
 				<!-- Smoke tests are built via the invoker plugin -->
 				<module>spring-boot-tests</module>
+				<module>my-spring-boot-test</module>
 			</modules>
 		</profile>
 		<!-- M2E profile to allow easy import into Eclipse -->
